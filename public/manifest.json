@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Kids Math & English Learning Hub",
+  "short_name": "KidsHub",
+  "description": "Interactive puzzles, gamified math and English exercises, parent tracking, and classroom integration.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
