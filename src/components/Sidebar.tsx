@@ -18,6 +18,7 @@ import {
 import { AppView, SubjectType, AgeGroup, StudentProgress } from '../types';
 import { COMPANIONS } from '../data/rewardData';
 import { LanguageCode, TRANSLATIONS } from '../i18n/translations';
+import { Wifi, WifiOff } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ interface SidebarProps {
   onSelectAgeGroup: (age: AgeGroup) => void;
   progress: StudentProgress;
   currentLanguage: LanguageCode;
+  onOpenOfflineCenter?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -43,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectAgeGroup,
   progress,
   currentLanguage,
+  onOpenOfflineCenter,
 }) => {
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
   const companion = COMPANIONS.find(c => c.id === progress.equippedCompanionId) || COMPANIONS[0];
@@ -292,6 +295,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </button>
                 );
               })}
+
+              {onOpenOfflineCenter && (
+                <button
+                  id="nav-item-offline-hub"
+                  onClick={() => {
+                    onOpenOfflineCenter();
+                    onClose();
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition touch-manipulation text-emerald-700 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/40 hover:bg-emerald-100 border border-emerald-200/60 dark:border-emerald-800/50 mt-1"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Wifi className="w-5 h-5 text-emerald-500" />
+                    <span className="font-bold">Offline Activity Center</span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200/80 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200">
+                    Ready
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </div>

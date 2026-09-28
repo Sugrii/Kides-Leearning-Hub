@@ -38,6 +38,7 @@ import { ParentDashboardView } from './components/ParentDashboardView';
 import { ClassroomView } from './components/ClassroomView';
 import { NotificationsModal } from './components/NotificationsModal';
 import { PrivacyComplianceModal } from './components/PrivacyComplianceModal';
+import { OfflineCenterModal } from './components/OfflineCenterModal';
 import { LanguageCode } from './i18n/translations';
 import { Clock, ShieldAlert, WifiOff } from 'lucide-react';
 
@@ -52,6 +53,7 @@ export default function App() {
   // Modals
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showOfflineModal, setShowOfflineModal] = useState(false);
 
   // Dark mode
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -209,6 +211,7 @@ export default function App() {
         progress={progress}
         isOnline={isOnline && !isSimulatedOffline}
         onToggleSimulatedNetwork={handleToggleSimulatedNetwork}
+        onOpenOfflineCenter={() => setShowOfflineModal(true)}
         unreadCount={unreadNotifCount}
         onOpenNotifications={() => setShowNotificationsModal(true)}
         onOpenPrivacy={() => setShowPrivacyModal(true)}
@@ -231,25 +234,34 @@ export default function App() {
         onSelectAgeGroup={(age) => setSelectedAgeGroup(age)}
         progress={progress}
         currentLanguage={currentLanguage}
+        onOpenOfflineCenter={() => setShowOfflineModal(true)}
       />
 
       {/* Main Workspace Container */}
       <main className="flex-1 max-w-5xl w-full mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
         {/* Offline Status Alert Banner if disconnected */}
         {(!isOnline || isSimulatedOffline) && (
-          <div className="rounded-2xl p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-2 shadow-xs animate-in fade-in">
+          <div className="rounded-2xl p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex flex-wrap items-center justify-between gap-2 shadow-xs animate-in fade-in">
             <div className="flex items-center gap-2">
               <WifiOff className="w-4 h-4 text-amber-600 flex-shrink-0" />
               <span>
-                <strong>Offline Mode Active:</strong> All learning puzzles, badges, and stars work 100% offline. Progress is securely encrypted locally.
+                <strong>Offline Mode Active:</strong> All 210 questions, audio phonics, 6 games & stars work 100% offline. Progress is securely encrypted locally.
               </span>
             </div>
-            <button
-              onClick={handleToggleSimulatedNetwork}
-              className="px-2.5 py-1 rounded-lg bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-bold text-[11px] whitespace-nowrap"
-            >
-              Go Online
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowOfflineModal(true)}
+                className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 font-bold text-[11px] whitespace-nowrap shadow-2xs hover:bg-amber-100 dark:hover:bg-slate-700 transition"
+              >
+                Offline Hub
+              </button>
+              <button
+                onClick={handleToggleSimulatedNetwork}
+                className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] whitespace-nowrap transition"
+              >
+                Go Online
+              </button>
+            </div>
           </div>
         )}
 
@@ -336,6 +348,7 @@ export default function App() {
             onUpdateAssignments={handleUpdateAssignments}
             progress={progress}
             soundEnabled={parentSettings.soundEnabled}
+            isOnline={isOnline && !isSimulatedOffline}
           />
         )}
 
@@ -380,6 +393,16 @@ export default function App() {
         isOpen={showPrivacyModal}
         onClose={() => setShowPrivacyModal(false)}
         onDataWiped={handleDataWiped}
+      />
+
+      {/* Offline Mode & Activity Readiness Diagnostic Center */}
+      <OfflineCenterModal
+        isOpen={showOfflineModal}
+        onClose={() => setShowOfflineModal(false)}
+        isOnline={isOnline && !isSimulatedOffline}
+        onToggleSimulatedOffline={handleToggleSimulatedNetwork}
+        pendingQueueCount={pendingOfflineCount}
+        onClearQueue={() => setPendingOfflineCount(0)}
       />
     </div>
   );

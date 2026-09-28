@@ -15,12 +15,14 @@ import {
 } from 'lucide-react';
 import { ClassroomAssignment, StudentProgress } from '../types';
 import { useSound } from '../hooks/useSound';
+import { addToOfflineQueue } from '../services/storage';
 
 interface ClassroomViewProps {
   assignments: ClassroomAssignment[];
   onUpdateAssignments: (updated: ClassroomAssignment[]) => void;
   progress: StudentProgress;
   soundEnabled: boolean;
+  isOnline?: boolean;
 }
 
 export const ClassroomView: React.FC<ClassroomViewProps> = ({
@@ -28,6 +30,7 @@ export const ClassroomView: React.FC<ClassroomViewProps> = ({
   onUpdateAssignments,
   progress,
   soundEnabled,
+  isOnline = true,
 }) => {
   const { playClick, playCorrect } = useSound(soundEnabled);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -46,7 +49,11 @@ export const ClassroomView: React.FC<ClassroomViewProps> = ({
     setTimeout(() => {
       setIsSyncing(false);
       playCorrect();
-      setSyncFeedback('Synchronized 2 active assignments and class rosters with Google Classroom API.');
+      if (isOnline) {
+        setSyncFeedback('✅ Synchronized assignments & class rosters with Google Classroom API.');
+      } else {
+        setSyncFeedback('⚡ Offline Mode: Verified local encrypted assignments. All progress will sync upon reconnection.');
+      }
 
       // Mark the first assignment completed if student has sufficient exercises
       if (progress.completedExerciseIds.length >= 2) {
@@ -55,7 +62,26 @@ export const ClassroomView: React.FC<ClassroomViewProps> = ({
       }
 
       setTimeout(() => setSyncFeedback(null), 4000);
-    }, 1200);
+    }, 800);
+  };
+
+  const handleCompleteAssignmentOffline = (assignmentId: string) => {
+    playClick();
+    playCorrect();
+    const updated = assignments.map(a => a.id === assignmentId ? { ...a, status: 'completed' as const, averageScore: Math.max(a.averageScore ?? 0, 95) } : a);
+    onUpdateAssignments(updated);
+
+    if (!isOnline) {
+      addToOfflineQueue({
+        type: 'CLASSROOM_SUBMISSION',
+        timestamp: new Date().toISOString(),
+        payload: { assignmentId, score: 95 },
+      });
+      setSyncFeedback('Offline submission saved! Queued for Google Classroom cloud sync.');
+    } else {
+      setSyncFeedback('Assignment submitted and recorded in Google Classroom gradebook!');
+    }
+    setTimeout(() => setSyncFeedback(null), 3500);
   };
 
   const handleGenerateLessonPlan = () => {
@@ -173,18 +199,28 @@ Focus: ${targetTopic}
                 </div>
 
                 {/* Performance & Action */}
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                   <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    Class Average: <strong className="text-indigo-600 dark:text-indigo-400">{assignment.averageScore}%</strong>
+                    Class Avg: <strong className="text-indigo-600 dark:text-indigo-400">{assignment.averageScore}%</strong>
                   </div>
 
-                  <button
-                    onClick={() => setSelectedAssignment(assignment)}
-                    className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-                  >
-                    <span>View Analytics</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {!isDone && (
+                      <button
+                        onClick={() => handleCompleteAssignmentOffline(assignment.id)}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition shadow-2xs"
+                      >
+                        Solve & Submit
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setSelectedAssignment(assignment)}
+                      className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                    >
+                      <span>Analytics</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );

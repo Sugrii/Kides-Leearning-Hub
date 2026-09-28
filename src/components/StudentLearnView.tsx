@@ -18,6 +18,7 @@ import { EXERCISES } from '../data/curriculumData';
 import { COMPANIONS } from '../data/rewardData';
 import { LanguageCode, TRANSLATIONS } from '../i18n/translations';
 import { useSound } from '../hooks/useSound';
+import { speakText } from '../services/speechService';
 
 interface StudentLearnViewProps {
   progress: StudentProgress;
@@ -176,17 +177,10 @@ export const StudentLearnView: React.FC<StudentLearnViewProps> = ({
     setCurrentIndex((prev) => (prev - 1 + filteredExercises.length) % filteredExercises.length);
   };
 
-  // Text-to-speech for young kids reading support
+  // Text-to-speech for young kids reading support (100% offline resilient)
   const speakQuestion = () => {
-    if (!currentExercise || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(currentExercise.question);
-      utterance.rate = 0.9; // Slightly slower for primary kids
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      // Speech unsupported
-    }
+    if (!currentExercise) return;
+    speakText(currentExercise.question, { rate: 0.88, pitch: 1.1 });
   };
 
   return (

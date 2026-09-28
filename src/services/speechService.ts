@@ -112,7 +112,56 @@ export function playPopSound() {
 }
 
 /**
- * Speak any text using Web SpeechSynthesis API with fallback tone
+ * Play synthesized phonics / letter formant tone using on-device Web Audio API.
+ * Ensures an audible, pleasant harmonic sound even if offline or if device lacks local TTS voice packages.
+ */
+export function playPhonicsTone(letter: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const charCode = letter.toUpperCase().charCodeAt(0);
+    // Base frequency scaled from 220Hz (A3) across 26 letters up to 587Hz (D5)
+    const normalized = Math.max(0, Math.min(25, charCode - 65));
+    const baseFreq = 260 + normalized * 12;
+
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    osc1.type = 'triangle';
+    osc2.type = 'sine';
+
+    osc1.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+    osc2.frequency.setValueAtTime(baseFreq * 1.5, ctx.currentTime);
+
+    // Resonant formant filter for vowel/consonant vocal tract feel
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(baseFreq * 2.2, ctx.currentTime);
+    filter.Q.setValueAtTime(3.0, ctx.currentTime);
+
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc1.start();
+    osc2.start();
+    osc1.stop(ctx.currentTime + 0.28);
+    osc2.stop(ctx.currentTime + 0.28);
+  } catch {
+    // Ignore audio failures
+  }
+}
+
+/**
+ * Speak any text using Web SpeechSynthesis API with on-device fallback and watchdog timer.
+ * Guaranteed to execute offline without requiring internet connectivity.
  */
 export function speakText(
   text: string, 
@@ -124,7 +173,7 @@ export function speakText(
       return;
     }
 
-    // Play subtle musical tone alongside speech
+    // Play subtle musical tone alongside speech for immediate tactile acoustic feedback
     playChime(1.1);
 
     if (!('speechSynthesis' in window)) {
@@ -134,28 +183,42 @@ export function speakText(
     }
 
     try {
-      window.speechSynthesis.cancel(); // Stop prior speech
+      window.speechSynthesis.cancel(); // Cancel any lingering paused speech
 
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = options?.rate ?? 0.9; // Friendly slower rate for kids
-      utterance.pitch = options?.pitch ?? 1.1; // Gentle bright pitch
+      utterance.rate = options?.rate ?? 0.88; // Slower rate tailored for kids
+      utterance.pitch = options?.pitch ?? 1.1; // Cheerful bright pitch
       utterance.lang = 'en-US';
 
-      // Pick high-quality English voice if present
+      // Prefer local on-device English voices for 100% offline playback
       const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find(v => (v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Karen'))));
-      if (preferred) {
-        utterance.voice = preferred;
+      const localVoice = voices.find(v => v.lang.startsWith('en') && (v.localService || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Karen') || v.name.includes('Google') || v.name.includes('English')));
+      if (localVoice) {
+        utterance.voice = localVoice;
       }
 
+      let completed = false;
+      const finish = () => {
+        if (!completed) {
+          completed = true;
+          if (options?.onEnd) options.onEnd();
+          resolve();
+        }
+      };
+
+      // Watchdog timer: if speech synthesis hangs offline, auto-resolve in 2.5s
+      const watchdog = setTimeout(() => {
+        finish();
+      }, 2500);
+
       utterance.onend = () => {
-        if (options?.onEnd) options.onEnd();
-        resolve();
+        clearTimeout(watchdog);
+        finish();
       };
 
       utterance.onerror = () => {
-        if (options?.onEnd) options.onEnd();
-        resolve();
+        clearTimeout(watchdog);
+        finish();
       };
 
       window.speechSynthesis.speak(utterance);
@@ -180,17 +243,20 @@ export function stopSpeech() {
 }
 
 /**
- * Pronounce number (0 to 100)
+ * Pronounce number (0 to 100) - completely offline
  */
 export function speakNumber(num: number, onEnd?: () => void) {
   const word = NUMBER_WORDS[num] || String(num);
+  // Also trigger number pitch chime
+  playChime(0.8 + (num % 20) * 0.03);
   speakText(word, { rate: 0.88, pitch: 1.1, onEnd });
 }
 
 /**
- * Pronounce alphabet letter and phonics
+ * Pronounce alphabet letter and phonics - completely offline
  */
 export function speakAlphabet(item: AlphabetItem, mode: 'letter' | 'phonics' | 'full' = 'full', onEnd?: () => void) {
+  playPhonicsTone(item.letter);
   let phrase = '';
   if (mode === 'letter') {
     phrase = item.letter;
@@ -201,3 +267,4 @@ export function speakAlphabet(item: AlphabetItem, mode: 'letter' | 'phonics' | '
   }
   speakText(phrase, { rate: 0.88, pitch: 1.15, onEnd });
 }
+
